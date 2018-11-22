@@ -1,13 +1,54 @@
 pragma solidity ^0.4.25;
 
+contract PlayerToFundings {
+    //参与者 => 合约地址数组
+    mapping(address => address[]) playerToFundings;
+
+    //参与
+    function join(address player, address fundingAddress) public {
+        playerToFundings[player].push(fundingAddress);
+    }
+
+    //参与的众筹项目
+    function getPlayerFundings(address player) public view returns (address[]){
+        return playerToFundings[player];
+    }
+}
+
 contract FundingFactory {
     //存储所有已经部署的众筹合约的地址
     address[] public fundings;
 
+    //创建者 => 合约地址数组
+    mapping(address => address[]) creatorToFundings;
+
+    //创建p2f
+    PlayerToFundings p2f;
+    constructor() public{
+        address p2fAddress = new PlayerToFundings();
+        p2f = PlayerToFundings(p2fAddress);
+    }
+
     //创建众筹
     function createFunding(string _projectName, uint _supportMoney, uint _goalMoney) public {
-        address funding = new Funding(_projectName, _supportMoney, _goalMoney, msg.sender);
+        address funding = new Funding(_projectName, _supportMoney, _goalMoney, msg.sender, p2f);
         fundings.push(funding);
+        creatorToFundings[msg.sender].push(funding);
+    }
+
+    // 查看所有众筹项目列表
+    function getFundings() public view returns (address[]){
+        return fundings;
+    }
+
+    // 查看创建者 创建的所有众筹项目地址
+    function getCreatorFundings() public view returns (address[]){
+        return creatorToFundings[msg.sender];
+    }
+
+    // 查看参与者 参与的众筹项目
+    function getPlayerFundings() public view returns (address[]){
+        return p2f.getPlayerFundings(msg.sender);
     }
 }
 
@@ -21,13 +62,16 @@ contract Funding {
     address[] public players;
     mapping(address => bool)  playersMap;
 
+    PlayerToFundings p2f;
+
     //众筹构造函数
-    constructor(string _projectName, uint _supportMoney, uint _goalMoney, address _address) public {
-        manager = _address;
+    constructor(string _projectName, uint _supportMoney, uint _goalMoney, address sender, PlayerToFundings _p2f) public {
+        manager = sender;
         projectName = _projectName;
         supportMoney = _supportMoney;
         goalMoney = _goalMoney;
         endTime = now + 4 weeks;
+        p2f = _p2f;
     }
 
     //参与人支持众筹
@@ -35,6 +79,7 @@ contract Funding {
         require(msg.value == supportMoney);
         players.push(msg.sender);
         playersMap[msg.sender] = true;
+        p2f.join(msg.sender, address(this));
     }
 
     //获取参与者数量
