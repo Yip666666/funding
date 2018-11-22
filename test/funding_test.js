@@ -26,19 +26,82 @@ before(async () => {
 
 describe('测试众筹合约', () => {
     let accounts;
+    let fundingAddresss;
     it('获取账号', async () => {
         accounts = await web3.eth.getAccounts();
         console.log(`accounts[0]` + accounts[0]);
     });
 
-    it('发起众筹', async () => {
-        let res = await ffContract.methods.createFunding("众筹物1", 11, 1111).send({
-            from: accounts[0], gas: "3000000"
+    it('1 发起众筹', async () => {
+        let result = await ffContract.methods.createFunding("众筹商品1", 111, 1000).send({
+            from: accounts[0],
+            gas: "3000000"
         });
-            res = await ffContract.methods.createFunding("众筹物2", 22, 2222).send({
-            from: accounts[0], gas: "3000000"
+        result = await ffContract.methods.createFunding("众筹商品2", 222, 2000).send({
+            from: accounts[0],
+            gas: "3000000"
         });
-        console.log(res);
+        console.log(result);
     });
 
+    it('2 查看所有众筹项目列表', async () => {
+        fundingAddresses = await ffContract.methods.getFundings().call();
+        console.log(fundingAddresses);
+    });
+
+    it('3 参与众筹项目', async () => {
+        fundingContract.options.address = fundingAddresses[0];
+        let resulet = await fundingContract.methods.support().send({
+            from: accounts[1],
+            value: 111,
+            gas: "3000000"
+        })
+        resulet = await fundingContract.methods.support().send({
+            from: accounts[2],
+            value: 111,
+            gas: "3000000"
+        })
+        console.log(resulet);
+    });
+
+    it('4 查看自己创建的众筹项目列表', async () => {
+        const arr = await ffContract.methods.getCreatorFundings().call({from: accounts[0]});
+        console.log(arr);
+    })
+
+    it('5 查看自己参与的众筹项目列表', async () => {
+        const arr = await ffContract.methods.getPlayerFundings().call({from: accounts[1]});
+        console.log(arr);
+    })
+
+    it('6 发起付款请求', async () => {
+        fundingContract.options.address = fundingAddresses[0];
+        const result = await fundingContract.methods.createRequest("请求买材料", 100, accounts[9]).send({
+            from: accounts[0],
+            gas: "3000000"
+        });
+        console.log(result);
+    });
+
+    it('7 查看指定众筹项目的付款请求列表', async () => {
+        const request = await fundingContract.methods.requests(0).call();
+        console.log(request);
+    });
+    
+    it('7.5 审批请求', async () => {
+        await fundingContract.methods.approveRequest(0).send({from: accounts[1], gas: "3000000"});
+        await fundingContract.methods.approveRequest(0).send({from: accounts[2], gas: "3000000"});
+        const request = await fundingContract.methods.requests(0).call();
+        console.log(request);
+    });
+
+    it('8 完成付款操作', async () => {
+        let result = await fundingContract.methods.finalizeRequest(0).send({
+            from: accounts[0],
+            gas: "3000000"
+        });
+        console.log(result);
+        const request = await fundingContract.methods.requests(0).call();
+        console.log(request);
+    });
 });
